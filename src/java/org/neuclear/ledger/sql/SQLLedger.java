@@ -4,30 +4,26 @@
  * To change the template for this generated file go to
  * Window>Preferences>Java>Code Generation>Code and Comments
  */
-package org.neuclear.ledger.implementations;
+package org.neuclear.ledger.sql;
 
-import org.neuclear.commons.sql.ConnectionSource;
-import org.neuclear.commons.sql.SQLTools;
-import org.neuclear.commons.sql.SQLContext;
-import org.neuclear.commons.sql.DefaultConnectionSource;
-import org.neuclear.commons.sql.statements.StatementFactory;
-import org.neuclear.commons.sql.entities.EntityModel;
-import org.neuclear.commons.sql.entities.Schema;
-import org.neuclear.commons.NeuClearException;
-import org.neuclear.commons.crypto.CryptoTools;
-import org.neuclear.ledger.*;
-import org.neuclear.ledger.InvalidTransactionException;
-import org.neuclear.ledger.browser.LedgerBrowser;
-import org.neuclear.ledger.browser.BookBrowser;
-import org.neuclear.ledger.browser.QueryBookBrowser;
-import org.neuclear.id.NSTools;
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.SHA1Digest;
+import org.neuclear.commons.crypto.CryptoTools;
+import org.neuclear.commons.sql.SQLTools;
+import org.neuclear.commons.sql.entities.EntityModel;
+import org.neuclear.commons.sql.entities.Schema;
+import org.neuclear.commons.sql.statements.StatementFactory;
+import org.neuclear.id.NSTools;
+import org.neuclear.ledger.*;
+import org.neuclear.ledger.browser.BookBrowser;
+import org.neuclear.ledger.browser.LedgerBrowser;
+import org.neuclear.ledger.browser.QueryBookBrowser;
 
-import javax.transaction.*;
-import javax.naming.NamingException;
-import java.io.IOException;
-import java.sql.*;
+import javax.transaction.UserTransaction;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.Date;
 import java.util.Iterator;
 
@@ -53,63 +49,66 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
 */
     public SQLLedger(final StatementFactory fact, final String id) throws LowlevelLedgerException, UnknownLedgerException {
         super(id, "sql ledger");
-        this.fact=fact;
+        this.fact = fact;
         create(fact);
         createLedger(id);
     }
 
     public void createLedger(String name) throws LowlevelLedgerException {
         try {
-             final PreparedStatement query=prepQuery("select * from ledger where id= ?");
-             query.setString(1,name);
-             ResultSet rs=query.executeQuery();
-             if (!rs.next()) {
-                 final PreparedStatement stmt = prepQuery("insert into ledger (id,title,created) values (?,?,now())");
-                 stmt.setString(1, name);
-                 stmt.setString(2, name);
-                 stmt.execute();
-             }
-         } catch (SQLException e) {
-             rollbackUT();
-             throw new LowlevelLedgerException(this, e);
-         }
+            final PreparedStatement query = prepQuery("select * from ledger where id= ?");
+            query.setString(1, name);
+            ResultSet rs = query.executeQuery();
+            if (!rs.next()) {
+                final PreparedStatement stmt = prepQuery("insert into ledger (id,title,created) values (?,?,now())");
+                stmt.setString(1, name);
+                stmt.setString(2, name);
+                stmt.execute();
+            }
+        } catch (SQLException e) {
+            rollbackUT();
+            throw new LowlevelLedgerException(this, e);
+        }
 
     }
-    public static synchronized void create(StatementFactory fact){
+
+    public static synchronized void create(StatementFactory fact) {
         createSchema().create(fact);
     }
-    public static Schema createSchema() {
-        Schema schema=new Schema("mysql");
 
-        EntityModel ledgerModel=schema.addEntityModel("ledger");
+    public static Schema createSchema() {
+        Schema schema = new Schema("mysql");
+
+        EntityModel ledgerModel = schema.addEntityModel("ledger");
         ledgerModel.addTitle();
 //            ledgerModel.addComment();
         ledgerModel.addTimeStamp();
-        EntityModel bookModel=schema.addEntityModel("book");
+        EntityModel bookModel = schema.addEntityModel("book");
         bookModel.addTitle();
         bookModel.addTimeStamp();
-        EntityModel xactModel=schema.addEntityModel("transaction");
+        EntityModel xactModel = schema.addEntityModel("transaction");
         xactModel.addComment();
         xactModel.addValueTime();
         xactModel.addReference(ledgerModel);
-        EntityModel entryModel=schema.addEntityModel("entry",false);
+        EntityModel entryModel = schema.addEntityModel("entry", false);
         entryModel.addMoney();
         entryModel.addReference(bookModel);
         entryModel.addReference(xactModel);
 
-        EntityModel hxactModel=schema.addEntityModel("held_transaction");
+        EntityModel hxactModel = schema.addEntityModel("held_transaction");
         hxactModel.addComment();
         hxactModel.addValueTime();
         hxactModel.addTimeStamp("held_until");
         hxactModel.addReference(ledgerModel);
         hxactModel.addReference(xactModel);
         hxactModel.addBoolean("cancelled");
-        EntityModel hentryModel=schema.addEntityModel("held_entry",false);
+        EntityModel hentryModel = schema.addEntityModel("held_entry", false);
         hentryModel.addMoney();
         hentryModel.addReference(bookModel);
         hentryModel.addReference(hxactModel);
         return schema;
     }
+
     private static String getLedgerName(final StatementFactory fact, final String id) throws UnknownLedgerException, LowlevelLedgerException {
         try {
             final PreparedStatement stmt = fact.prepareStatement("select title from ledger where id=?");
@@ -147,7 +146,7 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
     public final Book createNewBook(final String bookID, final String title) throws BookExistsException, LowlevelLedgerException {
         if (bookExists(bookID))
             throw new BookExistsException(this, bookID);
-       try {
+        try {
             final PreparedStatement stmt = prepQuery("insert into book values (?,?,now())");
             stmt.setString(1, bookID);
             stmt.setString(2, title);
@@ -222,7 +221,7 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
             update.setString(1, hold.getXid());
             update.setString(2, getId());
             final int affected = update.executeUpdate();
-            if (affected == 0)       {
+            if (affected == 0) {
                 rollbackUT();
                 throw new UnknownTransactionException(this, hold.getXid());
             }
@@ -251,7 +250,7 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
             update.setString(2, hold.getXid());
             update.setString(3, getId());
             final int affected = update.executeUpdate();
-            if (affected == 0)       {
+            if (affected == 0) {
                 rollbackUT();
                 throw new UnknownTransactionException(this, hold.getXid());
             }
@@ -271,18 +270,19 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
 
     }
 
-    private String createTransactionID(){
-            final Digest dig = new SHA1Digest();
-            final StringBuffer buffy = new StringBuffer(getId());
-            buffy.append('!');
-            buffy.append(System.currentTimeMillis());
-            buffy.append(CryptoTools.createRandomID());
-            return buffy.toString();
+    private String createTransactionID() {
+        final Digest dig = new SHA1Digest();
+        final StringBuffer buffy = new StringBuffer(getId());
+        buffy.append('!');
+        buffy.append(System.currentTimeMillis());
+        buffy.append(CryptoTools.createRandomID());
+        return buffy.toString();
     }
+
     private String insertTransaction(final UnPostedTransaction transaction) throws SQLException, LowlevelLedgerException {
         final PreparedStatement tranInsert = prepQuery("insert into transaction (id,valuetime,comment,ledgerid) values (?,?,?,?)");
         final String xid = createTransactionID();
-        tranInsert.setString(1,xid);
+        tranInsert.setString(1, xid);
         tranInsert.setTimestamp(2, SQLTools.toTimestamp(transaction.getTransactionTime()));
         tranInsert.setString(3, transaction.getComment());
         tranInsert.setString(4, getId());
@@ -294,7 +294,7 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
         final String xid = createTransactionID();
         final PreparedStatement tranInsert = prepQuery("insert into held_transaction (id,valuetime,comment,held_until,ledgerid,cancelled) values (?,?,?,?,?,0)");
 
-        tranInsert.setString(1,xid);
+        tranInsert.setString(1, xid);
         tranInsert.setTimestamp(2, SQLTools.toTimestamp(transaction.getTransactionTime()));
         tranInsert.setString(3, transaction.getComment());
         tranInsert.setTimestamp(4, SQLTools.toTimestamp(transaction.getExpiryTime()));
@@ -406,7 +406,7 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
             final PreparedStatement stmt = prepQuery("select sum(e.amount) from entry e,transaction t where e.transactionid=t.id and e.bookid=? and t.valuetime<= ? and t.ledgerid=?");
 
             stmt.setString(1, book.getBookID());
-            stmt.setTimestamp(2, new Timestamp(time.getTime()+1));
+            stmt.setTimestamp(2, new Timestamp(time.getTime() + 1));
             stmt.setString(3, getId());
 
             final ResultSet rs = stmt.executeQuery();
@@ -437,9 +437,8 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
                     "where " +
                     "e.held_transactionid=t.id and e.bookid=? and t.valuetime<= ? " +
                     "and e.amount<0 and t.held_until>= ? and t.cancelled=0 and t.transactionid is null and t.ledgerid=?"
-                    + ") u "
-            );
-            final Timestamp ts = new Timestamp(time.getTime()+1);
+                    + ") u ");
+            final Timestamp ts = new Timestamp(time.getTime() + 1);
             stmt.setString(1, book.getBookID());
             stmt.setTimestamp(2, ts);
             stmt.setString(3, getId());
@@ -488,6 +487,7 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
 
     /**
      * Rolls back a JTA UserTransaction on the ledger. Not to be confused with a Ledger Transaction.
+     *
      * @param ut
      * @throws LowlevelLedgerException
      */
@@ -497,25 +497,25 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
 
     public BookBrowser browse(Book book) throws LowlevelLedgerException {
         try {
-            return new QueryBookBrowser(book,fact);
+            return new QueryBookBrowser(book, fact);
         } catch (SQLException e) {
-            throw new LowlevelLedgerException(this,e);
+            throw new LowlevelLedgerException(this, e);
         }
     }
 
     public BookBrowser browseFrom(Book book, Timestamp from) throws LowlevelLedgerException {
         try {
-            return new QueryBookBrowser(book,fact,from);
+            return new QueryBookBrowser(book, fact, from);
         } catch (SQLException e) {
-            throw new LowlevelLedgerException(this,e);
+            throw new LowlevelLedgerException(this, e);
         }
     }
 
     public BookBrowser browseRange(Book book, Timestamp from, Timestamp until) throws LowlevelLedgerException {
         try {
-            return new QueryBookBrowser(book,fact,from,until);
+            return new QueryBookBrowser(book, fact, from, until);
         } catch (SQLException e) {
-            throw new LowlevelLedgerException(this,e);
+            throw new LowlevelLedgerException(this, e);
         }
     }
 

@@ -1,15 +1,16 @@
-package org.neuclear.ledger;
+package org.neuclear.ledger.sql;
 
 import org.neuclear.commons.NeuClearException;
-import org.neuclear.commons.sql.SQLTools;
 import org.neuclear.commons.sql.DefaultConnectionSource;
 import org.neuclear.commons.sql.statements.SimpleStatementFactory;
-import org.neuclear.ledger.implementations.SQLLedger;
+import org.neuclear.ledger.AbstractLedgerTest;
+import org.neuclear.ledger.Ledger;
+import org.neuclear.ledger.LowlevelLedgerException;
+import org.neuclear.ledger.UnknownLedgerException;
 
 import javax.naming.NamingException;
 import java.io.IOException;
 import java.sql.SQLException;
-import java.sql.PreparedStatement;
 
 /**
  * Created by IntelliJ IDEA.
@@ -24,7 +25,7 @@ public final class SQLLedgerTest extends AbstractLedgerTest {
     }
 
     public final Ledger createLedger() throws UnknownLedgerException, LowlevelLedgerException {
-        return new SQLLedger(new SimpleStatementFactory(new DefaultConnectionSource()),"test");  
+        return new SQLLedger(new SimpleStatementFactory(new DefaultConnectionSource()), "test");
     }
 
 
