@@ -48,7 +48,7 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
     }
 */
     public SQLLedger(final StatementFactory fact, final String id) throws LowlevelLedgerException, UnknownLedgerException {
-        super(id, "sql ledger");
+        super(id);
         this.fact = fact;
         create(fact);
         createLedger(id);
@@ -123,42 +123,6 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
         }
     }
 
-    /**
-     * This decides if new books are automatically created.
-     * 
-     * @return 
-     */
-    public final boolean allowAutoBookCreation() {
-        return false;
-    }
-
-    public final boolean bookExists(final String bookID) throws LowlevelLedgerException {
-        try {
-            final PreparedStatement stmt = prepQuery("select id from book where id=?");
-            stmt.setString(1, bookID);
-            final ResultSet rs = stmt.executeQuery();
-            return rs.next();
-        } catch (SQLException e) {
-            throw new LowlevelLedgerException(this, e);
-        }
-    }
-
-    public final Book createNewBook(final String bookID, final String title) throws BookExistsException, LowlevelLedgerException {
-        if (bookExists(bookID))
-            throw new BookExistsException(this, bookID);
-        try {
-            final PreparedStatement stmt = prepQuery("insert into book values (?,?,now())");
-            stmt.setString(1, bookID);
-            stmt.setString(2, title);
-            stmt.execute();
-            return createBookInstance(bookID, title);
-        } catch (SQLException e) {
-            rollbackUT();
-            throw new LowlevelLedgerException(this, e);
-        }
-
-    }
-
     /* (non-Javadoc)
 	 * @see org.neuclear.ledger.Ledger#performTransaction(org.neuclear.ledger.UnPostedTransaction)
 	 */
@@ -173,9 +137,8 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
                 final TransactionItem item = (TransactionItem) items.next();
                 insertTransactionItem(xid, item);
             }
-            return this.createTransaction(transaction, xid);
+            return new PostedTransaction(transaction, new Date());
         } catch (SQLException e) {
-            rollbackUT();
             throw new LowlevelLedgerException(this, e);
         }
     }
@@ -199,7 +162,7 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
                 final TransactionItem item = (TransactionItem) items.next();
                 insertHeldTransactionItem(xid, item);
             }
-            return this.createHeldTransaction(transaction, xid);
+            return new PostedHeldTransaction(transaction, new Date());
         } catch (SQLException e) {
             rollbackUT();
             System.err.println(e.getSQLState());
