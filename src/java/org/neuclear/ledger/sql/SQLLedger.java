@@ -144,6 +144,27 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
     }
 
     /**
+     * Similar to a transaction but guarantees that there wont be any negative balances left after the transaction.
+     *
+     * @param trans Transaction to perform
+     * @return The reference to the transaction
+     */
+    public PostedTransaction performVerifiedTransfer(UnPostedTransaction trans) throws UnBalancedTransactionException, LowlevelLedgerException, InvalidTransactionException {
+        return null;
+    }
+
+    /**
+     * The basic interface for creating Transactions in the database.
+     * The implementing class takes this transacion information and stores it with an automatically generated uniqueid.
+     * This transaction guarantees to not leave a negative balance in any account.
+     *
+     * @param trans Transaction to perform
+     */
+    public PostedHeldTransaction performHeldTransfer(UnPostedHeldTransaction trans) throws UnBalancedTransactionException, LowlevelLedgerException, InvalidTransactionException {
+        return null;
+    }
+
+    /**
      * The basic interface for creating Transactions in the database.
      * The implementing class takes this transacion information and stores it with an automatically generated uniqueid.
      * This id is returned as an identifier of the transaction.
@@ -196,6 +217,84 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
             rollbackUT();
             throw new LowlevelLedgerException(this, e);
         }
+    }
+
+    /**
+     * Completes a held transaction. Which means:
+     * cancelling the hold and performing the transfer with the given updated amount and comment.
+     *
+     * @param hold    HeldTransaction to complete
+     * @param amount  The updatd amount. It must be <= than the amount of the hold
+     * @param comment
+     * @return
+     * @throws org.neuclear.ledger.InvalidTransactionException
+     *
+     * @throws org.neuclear.ledger.LowlevelLedgerException
+     *
+     * @throws org.neuclear.ledger.TransactionExpiredException
+     *
+     */
+    public PostedTransaction performCompleteHold(PostedHeldTransaction hold, double amount, String comment) throws InvalidTransactionException, LowlevelLedgerException, TransactionExpiredException, UnknownTransactionException {
+        return null;
+    }
+
+    /**
+     * Searches for a Transaction based on its Transaction ID
+     *
+     * @param id A valid ID
+     * @return The Transaction object
+     */
+    public Date getTransactionTime(String id) throws LowlevelLedgerException, UnknownTransactionException, InvalidTransactionException, UnknownBookException {
+        return null;
+    }
+
+    /**
+     * Calculate the true accounting balance at a given time. This does not take into account any held transactions, thus may not necessarily
+     * show the Available balance.<p>
+     * Example sql for implementors: <pre>
+     * select c.credit - d.debit from
+     *      (
+     *          select sum(amount) as credit
+     *          from ledger
+     *          where transactiondate <= sysdate and end_date is null and credit= 'neu://BOB'
+     *       ) c,
+     *      (
+     *          select sum(amount) as debit
+     *          from ledger
+     *          where transactiondate <= sysdate and end_date is null and debit= 'neu://BOB'
+     *       ) d
+     * <p/>
+     * </pre>
+     *
+     * @return the balance as a double
+     */
+
+    public double getBalance(String book) throws LowlevelLedgerException {
+        return 0;
+    }
+
+    /**
+     * Calculate the available balance at a given time. This DOES take into account any held transactions.
+     * Example sql for implementors: <pre>
+     * select c.credit - d.debit from
+     *      (
+     *          select sum(amount) as credit
+     *          from ledger
+     *          where transactiondate <= sysdate and (end_date is null or end_date>= sysdate) and credit= 'neu://BOB'
+     *       ) c,
+     *      (
+     *          select sum(amount) as debit
+     *          from ledger
+     *          where transactiondate <= sysdate and end_date is null and debit= 'neu://BOB'
+     *       ) d
+     * <p/>
+     * </pre>
+     *
+     * @return the balance as a double
+     */
+
+    public double getAvailableBalance(String book) throws LowlevelLedgerException {
+        return 0;
     }
 
     public final PostedTransaction performCompleteHold(final PostedHeldTransaction hold, final double amount, final Date time, final String comment) throws TransactionExpiredException, InvalidTransactionException, LowlevelLedgerException {
@@ -357,6 +456,14 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
         }
     }
 
+    public double getTestBalance() throws LowlevelLedgerException {
+        return 0;
+    }
+
+    public void close() throws LowlevelLedgerException {
+
+    }
+
     private PreparedStatement prepQuery(final String sql) throws SQLException, LowlevelLedgerException {
         return fact.prepareStatement(sql);
     }
@@ -480,6 +587,18 @@ public final class SQLLedger extends Ledger implements LedgerBrowser {
         } catch (SQLException e) {
             throw new LowlevelLedgerException(this, e);
         }
+    }
+
+    public BookBrowser browse(String book) throws LowlevelLedgerException {
+        return null;
+    }
+
+    public BookBrowser browseFrom(String book, Timestamp from) throws LowlevelLedgerException {
+        return null;
+    }
+
+    public BookBrowser browseRange(String book, Timestamp from, Timestamp until) throws LowlevelLedgerException {
+        return null;
     }
 
     private final StatementFactory fact;
