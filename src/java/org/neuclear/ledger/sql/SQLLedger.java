@@ -17,7 +17,6 @@ import org.neuclear.id.NSTools;
 import org.neuclear.ledger.*;
 import org.neuclear.ledger.browser.BookBrowser;
 import org.neuclear.ledger.browser.LedgerBrowser;
-import org.neuclear.ledger.browser.QueryBookBrowser;
 
 import javax.transaction.UserTransaction;
 import java.sql.PreparedStatement;
